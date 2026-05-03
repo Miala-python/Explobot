@@ -3,119 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Python Mobile Stable</title>
+    <title>Python Mobile Final</title>
     
     <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
 
     <style>
-        :root { --bg: #f4f4f9; --card: #ffffff; }
         body { 
-            margin: 0; padding: 0; background: var(--bg);
+            margin: 0; padding: 0; background: #f0f2f5;
             display: flex; flex-direction: column; align-items: center;
-            font-family: system-ui, sans-serif; overflow-x: hidden;
+            font-family: system-ui, sans-serif;
         }
 
-        /* 1. ÉCRAN DE CHARGEMENT */
         #loading-screen {
             position: fixed; inset: 0; background: white; 
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
             z-index: 10000; transition: opacity 0.5s;
         }
-        .spinner { 
-            width: 50px; height: 50px; border: 5px solid #f3f3f3; 
-            border-top: 5px solid #2563eb; border-radius: 50%; 
-            animation: spin 1s linear infinite; 
-        }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* 2. CONTENEUR DU GRAPHIQUE (RESPONSIVE FORCE) */
         .app-wrapper {
-            width: 100%; max-width: 500px; /* Taille idéale mobile */
+            width: 100%; max-width: 500px;
             padding: 10px; box-sizing: border-box;
         }
 
-        /* On cible le div injecté par Matplotlib */
+        /* CONTENEUR MATPLOTLIB */
         div[style*="inline-block"], .pyscript-visual-output {
             width: 100% !important;
             height: auto !important;
             display: flex !important;
             flex-direction: column !important;
-            background: var(--card) !important;
+            background: white !important;
             border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             overflow: hidden !important;
-            border: none !important;
         }
 
-        /* Force le CANVAS à rester carré (50x50) mais responsive en largeur */
+        /* LE FIX DU NOIR : On force le canvas à remplir l'espace imparti */
         canvas {
             width: 100% !important;
             height: auto !important;
-            aspect-ratio: 1 / 1; /* Pour votre grille 50x50 */
-            object-fit: contain;
-            background: #000; /* Fond noir pour le style "matrice" */
+            aspect-ratio: 1 / 1; 
+            display: block !important;
+            image-rendering: pixelated; /* Optionnel : garde les pixels nets pour du 50x50 */
         }
 
-        /* La barre d'outils Matplotlib (boutons en bas) */
         .mpl-toolbar {
             width: 100% !important;
             display: flex !important;
-            flex-wrap: wrap !important;
             justify-content: center !important;
-            background: #eee !important;
-            padding: 5px 0 !important;
+            background: #fafafa !important;
             border-top: 1px solid #ddd !important;
+            padding: 10px 0 !important;
         }
-        
-        .mpl-toolbar button { padding: 8px !important; }
-
-        h1 { font-size: 1rem; margin: 15px 0; color: #333; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="loading-screen">
         <div class="spinner"></div>
-        <p style="margin-top:15px; font-weight:bold; color:#2563eb">Lancement de la simulation...</p>
+        <p style="margin-top:15px; color:#2563eb">Initialisation du graphique...</p>
     </div>
 
     <div class="app-wrapper">
-        <h1>Graphique Matplotlib 50x50</h1>
-        
+        <h1 style="font-size: 1.1rem; text-align: center;">Ma Simulation Python</h1>
         <script type="py" config="./pyscript.json" src="./main.py"></script>
     </div>
 
     <script>
-        /**
-         * Gestion intelligente de l'affichage
-         */
         const observer = new MutationObserver((mutations, obs) => {
             const canvas = document.querySelector('canvas');
-            const toolbar = document.querySelector('.mpl-toolbar');
-            
-            if (canvas && toolbar) {
-                // Le graphique est prêt
+            if (canvas) {
                 const loader = document.getElementById('loading-screen');
                 if (loader) {
-                    loader.style.opacity = '0';
+                    // Petit délai pour laisser le premier frame s'afficher
                     setTimeout(() => {
-                        loader.remove();
-                        // Correction du "bug du blanc" : on force un rafraîchissement de taille
-                        window.dispatchEvent(new Event('resize'));
-                    }, 500);
+                        loader.style.opacity = '0';
+                        setTimeout(() => {
+                            loader.remove();
+                            // TRÈS IMPORTANT : On simule un resize et un clic 
+                            // pour forcer le moteur d'animation à sortir du noir
+                            window.dispatchEvent(new Event('resize'));
+                            canvas.click(); 
+                        }, 500);
+                    }, 1000);
                 }
                 obs.disconnect();
             }
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
-
-        // Sécurité ultime si PyScript échoue
-        setTimeout(() => {
-            const l = document.getElementById('loading-screen');
-            if (l) l.style.display = 'none';
-        }, 15000);
     </script>
 
 </body>
