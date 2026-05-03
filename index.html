@@ -3,91 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Mobile Web</title>
-    
+    <title>Python Mobile Fix</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
 
     <style>
-        :root { --primary: #2563eb; }
-        body { 
-            margin: 0; padding: 0; 
-            font-family: -apple-system, system-ui, sans-serif;
-            background: #f8fafc;
-            display: flex; flex-direction: column; align-items: center;
-        }
-
-        /* 1. ÉCRAN DE CHARGEMENT */
+        body { margin: 0; padding: 0; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 1. LOADING SCREEN */
         #loading-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: white; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            transition: opacity 0.5s ease;
+            position: fixed; inset: 0; background: white; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 10000; transition: opacity 0.4s;
         }
-        /* PyScript cache automatiquement cet élément quand il a fini si on utilise sa classe */
-        .py-loading #loading-screen { display: flex; }
-        .spinner {
-            width: 40px; height: 40px; border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--primary); border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: #3b82f6; border-radius: 50%; animation: s 1s linear infinite; }
+        @keyframes s { to { transform: rotate(360deg); } }
 
-        /* 2. RESPONSIVE DESIGN SANS TOUCHER AU PYTHON */
-        .app-container {
-            width: 100%; max-width: 800px; padding: 10px;
-            box-sizing: border-box; text-align: center;
-        }
-
-        /* Cible le conteneur injecté par Matplotlib */
-        div.pyscript-visual-output, 
-        div[style*="inline-block"],
-        .mpl-container {
+        /* 2. FORCE RESPONSIVE (Le secret est le sélecteur universel sur les enfants de body) */
+        body > div[style*="inline-block"], 
+        .pyscript-visual-output,
+        div[class*="mpl"] {
             width: 100% !important;
+            max-width: 100vw !important;
             height: auto !important;
             display: block !important;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            overflow: hidden;
+            box-sizing: border-box !important;
         }
 
-        /* Force le Canvas à être responsive */
+        /* On cible spécifiquement le conteneur interne de 800px vu sur ta capture */
+        div[style*="width: 800px"] {
+            width: 100% !important;
+            height: auto !important;
+            min-width: 0 !important;
+        }
+
         canvas {
             width: 100% !important;
             height: auto !important;
-            max-width: 100%;
         }
 
-        /* Cache les messages d'erreur/warnings système moches */
-        .py-error, .py-warning { 
-            max-width: 90%; margin: 10px auto; font-size: 12px; 
-        }
+        /* On cache la toolbar Matplotlib si elle dépasse trop ou on la rend scrollable */
+        .mpl-toolbar { overflow-x: auto; width: 100%; display: flex; }
     </style>
 </head>
-<body class="py-loading">
+<body>
 
     <div id="loading-screen">
         <div class="spinner"></div>
-        <p style="margin-top: 15px; color: #64748b;">Initialisation de Python...</p>
+        <p>Chargement du graphique...</p>
     </div>
 
-    <div class="app-container">
-        <h1 style="font-size: 1.25rem;">Mon Application Python</h1>
-        
-        <script type="py" config="./pyscript.json" src="./main.py"></script>
-    </div>
+    <h1 style="font-size: 1.1rem; margin: 15px;">Dashboard Mobile</h1>
+
+    <script type="py" config="./pyscript.json" src="./main.py"></script>
 
     <script>
-        // Sécurité pour enlever l'écran de chargement même si PyScript tarde
-        // 'py-finished' est un événement envoyé par PyScript
-        document.addEventListener('py-finished', () => {
-            const loader = document.getElementById('loading-screen');
-            loader.style.opacity = '0';
-            setTimeout(() => loader.remove(), 500);
+        // Observation du DOM pour détecter quand Matplotlib injecte le graphique
+        const observer = new MutationObserver((mutations, obs) => {
+            // Si on voit un élément avec la classe mpl-toolbar ou un canvas, c'est que c'est prêt
+            if (document.querySelector('canvas') || document.querySelector('.mpl-toolbar')) {
+                const loader = document.getElementById('loading-screen');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.remove(), 400);
+                }
+                obs.disconnect(); // On arrête d'observer
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        // Sécurité si jamais l'observer rate
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                if (loader) loader.remove();
+            }, 8000); 
         });
     </script>
-
 </body>
 </html>
