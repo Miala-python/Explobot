@@ -9,18 +9,41 @@
     <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
     
     <style>
-        body { font-family: system-ui; display: flex; flex-direction: column; align-items: center; background: #f4f4f9; }
-        #plot-area { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button { padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #3b82f6; color: white; margin-bottom: 10px; }
-        button:hover { background: #2563eb; }
+        body { 
+            margin: 0; 
+            padding: 10px;
+            font-family: system-ui, -apple-system, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #f0f2f5;
+        }
+        h1 { font-size: 1.1rem; color: #1a1a1a; margin-bottom: 20px; }
+
+        /* Rendre le graphique réellement fluide sur mobile */
+        div.pyscript-visual-output, 
+        div[style*="inline-block"] {
+            width: 100% !important;
+            max-width: 500px;
+            height: auto !important;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+            display: block;
+        }
     </style>
 </head>
 <body>
 
     <h1>Graphique Animé & Interactif</h1>
     
-    <!-- <button id="my-button">Relancer l'Animation</button> -->
-    <div id="plot-area"></div>
+    <!-- <button id="my-button">Relancer l'Animation</button> 
+    <div id="plot-area"></div> -->
 
     
 
@@ -378,7 +401,7 @@ def update(frame=None, force = False):
     return [img]
 
 # Remove unsupported 'cache_frame_data' for older matplotlib versions
-anim = FuncAnimation(fig, update, interval=1000/fps, blit=True)
+anim = FuncAnimation(fig, update, interval=1000/fps, blit=True, cache_frame_data=False)
 ax_pause = plt.axes([0.45, 0.05, 0.1, 0.075])
 ax_next = plt.axes([0.6, 0.05, 0.1, 0.075])
 
