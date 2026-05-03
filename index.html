@@ -1,1 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Python 2026</title>
+    
+    <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
+    
+    <style>
+        body { font-family: system-ui; display: flex; flex-direction: column; align-items: center; background: #f4f4f9; }
+        #plot-area { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #3b82f6; color: white; margin-bottom: 10px; }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+
+    <h1>Graphique Animé & Interactif</h1>
+    
+    <button id="my-button">Relancer l'Animation</button>
+    <div id="plot-area"></div>
+
+    <script type="py" config>
+        {
+            "packages": ["matplotlib", "numpy"]
+        }
+    </script>
+
+    <script type="py">
+from pyscript import when, display
+
+## Importation des modules
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.widgets import Button
+from random import *
+
+## Configuration initiale
+grid_len = [50, 50]
+
+grid = [[0 for _ in range(grid_len[1])] for _ in range(grid_len[0])]
+
+echelle_couleur = [0,300]
+fps = 30
+
+maison = [10,10]
+dl = 10
+bots_nb = {
+    1: 3,
+    4: 1,
+    5:1,
+    6:1
+}
+env = {
+    "miam":20,
+    "home":3,
+    "wall":99
+}
+
+ranmdispo = [2,4,5,6]
+modes_pb = {
+    1: .001,
+    2: .01,
+    4: .01,
+    5: .01,
+    6: .07,
+    9: 0
+}
+
+## Algorithmie
+
+NoneFunc = lambda grid, id: grid
+
+lim = [
+    [maison[0]-dl,maison[0]+dl],
+    [maison[1]-dl,maison[1]+dl]
+]
+
+decalage = 150
+clr = {
+    "miam":100,
+    "empty": 0,
+    "bot":50,
+    "miamed":35,
+    "home": decalage,
+    "wall": 15
+}
+exploclr = [clr["empty"], clr["miam"]]
+
+locs = []
+counts = []
+modes = []
+froms = [] # NOSE:4321
+
+def nouv_bot(x = maison[1], y = maison[0], mode = 1):
+    locs.append((y,x))
+    counts.append(0)
+    modes.append(mode)
+    froms.append(1)
+
+for e in bots_nb:
+    for i in range(bots_nb[e]):
+        nouv_bot(mode = e)
+nouv_bot(20,20,1)
+
+def nouv_miam(x = -1, y = -1, type="miam"):
+    x = x if 0<=x < grid_len[1] else randint(0,grid_len[1]-1)
+    y = y if 0<=y < grid_len[0] else randint(0,grid_len[0]-1)
+    print('tentative de',type,'en',y,x)
+    if grid[y][x] == 0:
+        grid[y][x] = clr[type]
+
+for e in env:
+    for i in range(env[e]):
+        nouv_miam(type=e)
+
+
+def get_data(id):
+    y,x = locs[id]
+    return (y,x, counts[id])
+
+def set_data(id, y, x, count):
+    locs[id] = (y,x)
+    counts[id] = count
+
+def mode_retour(grid, id, exact = False, clr_sup=False, todo=NoneFunc):
+    y,x,count = get_data(id)
+    realCount = decalage+count
+    grid[y][x] = realCount
+    moved = exact
+    if exact:
+        if y>lim[0][0] and grid[y-1][x] == realCount - 1:
+            y -= 1
+        elif y<lim[0][1]-1 and grid[y+1][x] == realCount -1:
+            y += 1
+        elif x>lim[1][0] and grid[y][x-1] == realCount -1:
+            x -= 1
+        elif x<lim[1][1] -1 and grid[y][x+1] == realCount -1:
+            x += 1
+        else:
+            moved = False
+    if not moved:
+        if x>lim[1][0] and decalage <= grid[y][x-1] < realCount:
+            x -= 1
+        elif y<lim[0][1]-1 and decalage <= grid[y+1][x] < realCount:
+            y += 1
+        elif x<lim[1][1] -1 and decalage <= grid[y][x+1] < realCount:
+            x += 1
+        elif y>lim[0][0] and decalage <= grid[y-1][x] < realCount:
+            y -= 1
+        else:
+            todo(grid,id)
+            #todo(grid,id)
+            return
+
+    count = grid[y][x] - decalage
+    set_data(id, y, x, count)
+    grid[y][x] = clr["bot"]+clr_sup
+
+
+def mode_explo(grid, id): #M1, 2:retour explo
+    y,x,count = get_data(id)
+    grid[y][x] = decalage+count
+    if y>lim[0][0] and grid[y-1][x] in exploclr :
+        y -= 1
+        modes[id] = 1
+    elif y<lim[0][1]-1 and grid[y+1][x] in exploclr:
+        y += 1
+        modes[id] = 1
+    elif x>lim[1][0] and grid[y][x-1] in exploclr:
+        x -= 1
+        modes[id] = 1
+    elif x<lim[1][1] -1 and grid[y][x+1] in exploclr:
+        x += 1
+        modes[id] = 1
+    elif modes[id] == 2:
+        realCount = decalage+count
+        def nord(n = 3, recul = False, ran = False):
+            nonlocal y, x
+            if n<(1-int(recul)): return False
+            if y>lim[0][0] and (ran or (recul and decalage <= grid[y-1][x]) or grid[y-1][x] > realCount):
+                y-=1
+                return 2
+            else:
+                return ouest(n-1, recul)
+        def ouest(n=3, recul = False, ran = False):
+            nonlocal y, x
+            if n<(1-int(recul)): return False
+            if x>lim[1][0] and (ran or (recul and decalage <= grid[y][x-1]) or grid[y][x-1] > realCount):
+                x-=1
+                return 1
+            else:
+                return sud(n-1, recul)
+        def sud(n=3, recul = False, ran = False):
+            nonlocal y, x
+            if n<(1-int(recul)): return False
+            if y<lim[0][1]-1 and (ran or (recul and decalage <= grid[y+1][x]) or grid[y+1][x] > realCount):
+                y+=1
+                return 4
+            else:
+                return est(n-1, recul)
+        def est(n=3, recul = False, ran = False):
+            nonlocal y, x
+            if n<(1-int(recul)): return False
+            if x<lim[1][1]-1 and (ran or (recul and decalage <= grid[y][x+1]) or grid[y][x+1] > realCount):
+                x+=1
+                return 3
+            else:
+                return nord(n-1, recul)
+
+        to = 0
+        frm = froms[id]
+        if (frm == 4): to = ouest()
+        elif (frm == 3): to = sud()
+        elif (frm == 2): to = est()
+        elif (frm == 1): to = nord()
+        if (not to):
+            rand = random()<.1
+            frm = froms[id] if not rand else (frm+1)%4+1
+            if (frm == 4): to = est(recul=True, ran = rand)
+            elif (frm == 3): to = nord(recul=True, ran = rand)
+            elif (frm == 2): to = ouest(recul=True, ran = rand)
+            elif (frm == 1): to = sud(recul=True, ran = rand)
+
+        if to:
+            froms[id] = to
+        else:
+            print(id,'bloqué')
+
+        if decalage <= grid[y][x] <= decalage + count:
+            count = grid[y][x]-decalage-1 #-1+1=0
+
+    elif count == 0:
+        modes[id] = 2
+        return
+    else:
+        mode_retour(grid, id, exact = True, todo=mode_harmon)
+        return
+    count += 1
+    set_data(id, y, x, count)
+    if grid[y][x] == clr["miam"]:
+        modes[id] = 9
+    grid[y][x] = clr["bot"]
+
+def mode_miam(grid, id): #M9
+    count = counts[id]
+    if count == 0:
+        modes[id] = 1
+        return
+
+    mode_retour(grid, id, clr_sup=clr["miamed"], todo=mode_harmon)
+
+def mode_harmon(grid,id): #M4
+    y,x,count = get_data(id)
+    #if grid[y][x] >= decalage:
+        #count = grid[y][x] - decalage
+    grid[y][x] = decalage + count
+    if y>lim[0][0] and grid[y-1][x] > decalage and random() < 1/4 :
+        y -= 1
+    elif y<lim[0][1]-1 and grid[y+1][x] > decalage and random() < 1/3 :
+        y += 1
+    elif x>lim[1][0] and grid[y][x-1] > decalage and random() < 1/2:
+        x -= 1
+    elif x<lim[1][1] -1 and grid[y][x+1] > decalage :
+        x += 1
+    count += 1
+    if grid[y][x] > decalage + count:
+        grid[y][x] = decalage + count
+        #print("Replace",x,y,count)
+    elif grid[y][x] >= decalage:
+        count = grid[y][x] - decalage
+
+    set_data(id, y, x, count)
+    grid[y][x] = clr["bot"]
+    return grid
+
+def mode_paume(grid,id): #M5
+    y,x,count = get_data(id)
+    grid[y][x] = decalage + count
+    dontgo = [clr["bot"], clr["wall"]]
+    if y>lim[0][0] and not grid[y-1][x] in dontgo and random() < 1/4 :
+        y -= 1
+    elif y<lim[0][1]-1 and not grid[y+1][x] in dontgo and random() < 1/3 :
+        y += 1
+    elif x>lim[1][0] and not grid[y][x-1] in dontgo and random() < 1/2:
+        x -= 1
+    elif x<lim[1][1] -1 and not grid[y][x+1] in dontgo :
+        x += 1
+    count += 1
+    if grid[y][x] == clr["miam"]:
+        modes[id] = 9
+    if grid[y][x] > decalage + count:
+        grid[y][x] = decalage + count
+        #print("Replace",x,y,count)
+    elif grid[y][x] >= decalage:
+        count = grid[y][x] - decalage
+
+    set_data(id, y, x, count)
+    grid[y][x] = clr["bot"]
+    return grid
+
+def mode_farceur(grid,id): #M6
+    y,x,count = get_data(id)
+    grid[y][x] = decalage + count
+    dontgo = [clr["bot"],clr["miam"], clr["wall"]]
+    if y>lim[0][0] and not grid[y-1][x] in dontgo and random() < 1/4 :
+        y -= 1
+    elif y<lim[0][1]-1 and not grid[y+1][x] in dontgo and random() < 1/3 :
+        y += 1
+    elif x>lim[1][0] and not grid[y][x-1] in dontgo and random() < 1/2:
+        x -= 1
+    elif x<lim[1][1] -1 and not grid[y][x+1] in dontgo :
+        x += 1
+    count = (grid[y][x] - decalage if grid[y][x] >= decalage and random()<.5 else count ) + randint(1,10) 
+    if grid[y][x] == decalage: count = 0
+
+    set_data(id, y, x, count)
+    grid[y][x] = clr["bot"]
+    return grid
+
+
+def mode_manager(grid, id):
+    mode = modes[id]
+
+    #print(id,mode)
+    if mode in [1,2]:
+        mode_explo(grid, id)
+    elif mode == 9:
+        mode_miam(grid, id)
+    elif mode == 4:
+        mode_harmon(grid, id)
+    elif mode == 5:
+        mode_paume(grid, id)
+    elif mode == 6:
+        mode_farceur(grid, id)
+
+    if random() < modes_pb[mode]:
+        n = ranmdispo[randint(0,len(ranmdispo)-1)]
+        print(id,':',mode,'->',n)
+        modes[id] = n
+
+
+
+def updateFunc(grid):
+    global paused
+    for id in range(len(locs)):
+        mode_manager(grid, id)
+        distmin = abs(locs[id][0]-maison[0])+abs(locs[id][1]-maison[1])
+        if False and counts[id]<distmin:
+            paused = True
+            print("ERRRRRRRRR",id)
+            print(counts,locs,distmin, maison)
+            return grid
+        
+
+    if random()<.1:
+        lim[0][0] -= 1 if lim[0][0] > 0 else 0
+        lim[0][1] += 1 if lim[0][1] < grid_len[0] else 0
+        lim[1][0] -= 1 if lim[1][0] > 0 else 0
+        lim[1][1] += 1 if lim[1][1] < grid_len[1] else 0
+        #print(lim)
+
+
+
+    return grid
+
+updateFunc = updateFunc # A modifier selon la fonction
+
+## Animation
+fig, ax = plt.subplots(figsize=(8, 6))
+plt.subplots_adjust(bottom=0.2)
+img = ax.imshow(grid, cmap='turbo', vmin=echelle_couleur[0], vmax=echelle_couleur[1], animated=True)
+
+paused = True
+def update(frame=None, force = False):
+    global grid
+    if force or not paused:
+        grid = updateFunc(grid)
+        img.set_array(grid)
+    return [img]
+
+# Remove unsupported 'cache_frame_data' for older matplotlib versions
+anim = FuncAnimation(fig, update, interval=1000/fps, blit=True)
+ax_pause = plt.axes([0.45, 0.05, 0.1, 0.075])
+ax_next = plt.axes([0.6, 0.05, 0.1, 0.075])
+
+btn_pause = Button(ax_pause, 'Play')
+btn_next = Button(ax_next, '->')
+
+def playpaused(event):
+    global paused
+    paused = not paused
+    btn_pause.label.set_text('Play' if paused else 'Pause')
+
+def next(event):
+    global paused
+    paused = True
+    btn_pause.label.set_text('Play')
+    update(force=True)
+    fig.canvas.draw_idle()
+
+btn_pause.on_clicked(playpaused)
+btn_next.on_clicked(next)
+
+plt.show()
+
+
+
+
+    </script>
+
+</body>
+</html>
 
