@@ -2,84 +2,121 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Mobile Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Python Mobile Stable</title>
+    
     <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css" />
     <script type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
 
     <style>
-        body { margin: 0; padding: 0; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; }
-        
-        /* 1. LOADING SCREEN */
+        :root { --bg: #f4f4f9; --card: #ffffff; }
+        body { 
+            margin: 0; padding: 0; background: var(--bg);
+            display: flex; flex-direction: column; align-items: center;
+            font-family: system-ui, sans-serif; overflow-x: hidden;
+        }
+
+        /* 1. ÉCRAN DE CHARGEMENT */
         #loading-screen {
             position: fixed; inset: 0; background: white; 
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            z-index: 10000; transition: opacity 0.4s;
+            z-index: 10000; transition: opacity 0.5s;
         }
-        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: #3b82f6; border-radius: 50%; animation: s 1s linear infinite; }
-        @keyframes s { to { transform: rotate(360deg); } }
+        .spinner { 
+            width: 50px; height: 50px; border: 5px solid #f3f3f3; 
+            border-top: 5px solid #2563eb; border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* 2. FORCE RESPONSIVE (Le secret est le sélecteur universel sur les enfants de body) */
-        body > div[style*="inline-block"], 
-        .pyscript-visual-output,
-        div[class*="mpl"] {
+        /* 2. CONTENEUR DU GRAPHIQUE (RESPONSIVE FORCE) */
+        .app-wrapper {
+            width: 100%; max-width: 500px; /* Taille idéale mobile */
+            padding: 10px; box-sizing: border-box;
+        }
+
+        /* On cible le div injecté par Matplotlib */
+        div[style*="inline-block"], .pyscript-visual-output {
             width: 100% !important;
-            max-width: 100vw !important;
             height: auto !important;
-            display: block !important;
-            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            background: var(--card) !important;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            overflow: hidden !important;
+            border: none !important;
         }
 
-        /* On cible spécifiquement le conteneur interne de 800px vu sur ta capture */
-        div[style*="width: 800px"] {
-            width: 100% !important;
-            height: auto !important;
-            min-width: 0 !important;
-        }
-
+        /* Force le CANVAS à rester carré (50x50) mais responsive en largeur */
         canvas {
             width: 100% !important;
             height: auto !important;
+            aspect-ratio: 1 / 1; /* Pour votre grille 50x50 */
+            object-fit: contain;
+            background: #000; /* Fond noir pour le style "matrice" */
         }
 
-        /* On cache la toolbar Matplotlib si elle dépasse trop ou on la rend scrollable */
-        .mpl-toolbar { overflow-x: auto; width: 100%; display: flex; }
+        /* La barre d'outils Matplotlib (boutons en bas) */
+        .mpl-toolbar {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            background: #eee !important;
+            padding: 5px 0 !important;
+            border-top: 1px solid #ddd !important;
+        }
+        
+        .mpl-toolbar button { padding: 8px !important; }
+
+        h1 { font-size: 1rem; margin: 15px 0; color: #333; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="loading-screen">
         <div class="spinner"></div>
-        <p>Chargement du graphique...</p>
+        <p style="margin-top:15px; font-weight:bold; color:#2563eb">Lancement de la simulation...</p>
     </div>
 
-    <h1 style="font-size: 1.1rem; margin: 15px;">Dashboard Mobile</h1>
-
-    <script type="py" config="./pyscript.json" src="./main.py"></script>
+    <div class="app-wrapper">
+        <h1>Graphique Matplotlib 50x50</h1>
+        
+        <script type="py" config="./pyscript.json" src="./main.py"></script>
+    </div>
 
     <script>
-        // Observation du DOM pour détecter quand Matplotlib injecte le graphique
+        /**
+         * Gestion intelligente de l'affichage
+         */
         const observer = new MutationObserver((mutations, obs) => {
-            // Si on voit un élément avec la classe mpl-toolbar ou un canvas, c'est que c'est prêt
-            if (document.querySelector('canvas') || document.querySelector('.mpl-toolbar')) {
+            const canvas = document.querySelector('canvas');
+            const toolbar = document.querySelector('.mpl-toolbar');
+            
+            if (canvas && toolbar) {
+                // Le graphique est prêt
                 const loader = document.getElementById('loading-screen');
                 if (loader) {
                     loader.style.opacity = '0';
-                    setTimeout(() => loader.remove(), 400);
+                    setTimeout(() => {
+                        loader.remove();
+                        // Correction du "bug du blanc" : on force un rafraîchissement de taille
+                        window.dispatchEvent(new Event('resize'));
+                    }, 500);
                 }
-                obs.disconnect(); // On arrête d'observer
+                obs.disconnect();
             }
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
-        
-        // Sécurité si jamais l'observer rate
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const loader = document.getElementById('loading-screen');
-                if (loader) loader.remove();
-            }, 8000); 
-        });
+
+        // Sécurité ultime si PyScript échoue
+        setTimeout(() => {
+            const l = document.getElementById('loading-screen');
+            if (l) l.style.display = 'none';
+        }, 15000);
     </script>
+
 </body>
 </html>
